@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <title>TryMC — Voxel Sandbox</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+
+      <div id="crosshair" aria-hidden="true"></div>
+
+      <div id="hud" aria-hidden="true">
+        <div id="fps">FPS --</div>
+        <div id="pos">XYZ 0 0 0</div>
+        <div id="chunks">Chunks 0</div>
+        <div id="cycle">Day/night: ON</div>
+        <div id="debug">pending gen 0 · pending mesh 0 · edited 0 · tris 0</div>
+      </div>
+
+      <div id="hotbar" aria-label="Block selection hotbar"></div>
+
+      <div id="loading">
+        <div id="loadtext">Generating world… 0%</div>
+        <div id="loadbar">
+          <div id="loadbarfill"></div>
+        </div>
+      </div>
+
+      <div id="clickToPlay">
+        <h1>TryMC</h1>
+        <p>
+          Click to play<br />
+          WASD move · Space jump · Shift sprint<br />
+          Left click break · Right click place<br />
+          1–9 or scroll wheel to select blocks · N day/night · F3 debug
+        </p>
+      </div>
+
+      <div id="fatal" class="hidden">
+        <h1>Failed to start</h1>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

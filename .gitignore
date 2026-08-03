@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Vite cache
+.vite/
+.vite-temp/
+
+# Test output
+test-results/
+playwright-report/
+coverage/
+
+# Logs
+*.log
+
+# Playwright MCP session artifacts
+.playwright-mcp/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+
+# Scratch verification evidence keeps out; docs evidence is tracked intentionally
