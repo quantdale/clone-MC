@@ -5,15 +5,9 @@ procedurally generated terrain, first-person controls, block building, and
 streaming 16×16×64 chunks. Runs entirely in the browser — no server-side
 world, no assets to download, just a canvas and a pointer lock.
 
-<!--
-  Screenshot placeholder.
-  Add a screenshot of the game here:
-    <picture>
-      <img src="docs/screenshot.png" alt="TryMC gameplay screenshot" width="800" />
-    </picture>
-  The current repo ships docs/screenshot.png (captured from the running game).
-  Remove this comment once you're happy with the image.
--->
+<picture>
+  <img src="docs/screenshot-fixed.png" alt="TryMC gameplay screenshot" width="800" />
+</picture>
 
 ## Prerequisites
 
@@ -123,23 +117,33 @@ player. Key pieces:
 
 - **Greedy-meshed chunks** — `src/world/Mesher.ts` builds each chunk's faces
   by 2D masks per direction and merges runs of identical texture into single
-  quads. Faces are categorized into three passes: **solid** (opaque), **cutout**
-  (leaves, `alphaTest` + `DoubleSide`), and **water** (translucent, rendered
-  last). Per-face brightness shading comes from baked vertex colors.
+  quads (a merged quad can span a whole chunk). Face UVs are computed per
+  block in the fragment shader (`src/render/voxelShader.ts`), so merged quads
+  tile correctly instead of stretching across the atlas. Faces go into three
+  passes: **solid** (opaque), **cutout** (leaves and plants, `alphaTest` +
+  `DoubleSide`), and **water** (translucent, sunken surface, rendered last).
+  Per-face brightness and merged-corner ambient occlusion are baked into
+  vertex colors.
 - **Procedural seeded terrain** — `src/world/TerrainGenerator.ts` generates
-  deterministic terrain from a seed: fbm simplex heightmap (oceans, beaches,
-  hills, mountains), 3D-noise caves, and hashed tree placement with canopies
-  that overhang neighboring chunks. Bedrock sits at `y = 0`.
+  deterministic terrain from a seed: broad continents and rolling hills with
+  a ridged mountain mask, stone and snow caps, cliff-sealed caves, beaches,
+  and forest-clumped oak/spruce trees with canopies that overhang neighboring
+  chunks. Tall grass and flowers dot the grassland. Bedrock sits at `y = 0`.
 - **Chunk streaming** — `src/world/ChunkManager.ts` keeps generation and
   meshing inside per-frame time budgets (6 ms each), rebuilds only dirty
   chunks, marks boundary neighbors dirty on edits, and unloads far chunks
   once per simulated second.
 - **AABB collision** — `src/player/PlayerController.ts` integrates movement
   axis-by-axis against the voxel grid (half-width 0.3, height 1.8), with
-  gravity, jump, sprint, water buoyancy/swimming, head bob, and an FOV kick.
+  gravity, jump, sprint, water buoyancy/swimming, one-block auto step-up,
+  head bob, and an FOV kick.
 - **Voxel raycasting** — `src/player/BlockPicker.ts` is an Amanatides & Woo
   grid DDA that returns the first non-air block hit and its face normal
-  (used for both breaking and placing).
+  (used for both breaking and placing); the cell containing the eye is
+  skipped so targeting works while swimming.
+- **Sky and lighting** — `src/render/SkyDome.ts` draws a gradient sky with a
+  sun halo, moon, stars and drifting clouds; `src/render/WorldRenderer.ts`
+  animates the day/night cycle and matches fog to the horizon.
 - **In-session edit persistence** — player block edits are recorded as an
   overlay map (`ChunkManager.edits`) and re-applied when a chunk is
   regenerated, so edits survive chunk unload/reload.
@@ -168,15 +172,16 @@ end of this file).
   6 ms of mesh rebuilding per frame (`ChunkManager.update`). These are the
   code's per-frame limits; work is spread across frames so the main loop never
   blocks on a large burst.
-- **Measured (headless Chromium, disabled GPU, `?seed=1337`, VIEW_RADIUS=6):**
+- **Measured (headless Chromium, `?seed=1337`, VIEW_RADIUS=6):**
   with all 169 chunks loaded and the generation/mesh queues drained, the game
-  held a **stable 60 FPS** rendering **~89,514 triangles** with **0 pending
-  generation and 0 pending mesh** work. This is a real observation from a
-  production build, not a synthetic benchmark — on your GPU results will vary.
+  renders **~47,000 triangles** with **0 pending generation and 0 pending
+  mesh** work. Observed frame rate in software-rendered headless Chromium is
+  ~20 FPS; on real GPU hardware expect a stable frame rate — on your GPU
+  results will vary.
 - **Interleaving:** generation and meshing are spread across frames so the
   main loop never blocks on a large burst of work.
 - The world is fully procedural — no out-of-memory assets, and the texture
-  atlas is a single 16×16 tile canvas with nearest-neighbor filtering.
+  atlas is a single 14-tile canvas with nearest-neighbor filtering.
 
 ## Known limitations
 

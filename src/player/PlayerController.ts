@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { Block } from "../blocks/Blocks";
+import { Block, blocksMovement } from "../blocks/Blocks";
 import {
   EYE_HEIGHT,
   GRAVITY,
@@ -81,8 +81,14 @@ export class PlayerController {
     // Integrate with collision, axis by axis (Y first so ground steps feel clean).
     this.onGround = false;
     this.collideAxis(1, this.vel.y * dt, manager);
-    this.collideAxis(0, this.vel.x * dt, manager);
-    this.collideAxis(2, this.vel.z * dt, manager);
+    const dx = this.vel.x * dt;
+    const dz = this.vel.z * dt;
+    const x0 = this.pos.x;
+    const z0 = this.pos.z;
+    const y0 = this.pos.y;
+    this.collideAxis(0, dx, manager);
+    this.collideAxis(2, dz, manager);
+    if (this.onGround) this.tryStepUp(x0, y0, z0, dx, dz, manager);
 
     // Safety net if the player ever falls out of the world.
     if (this.pos.y < -16) {
@@ -133,7 +139,7 @@ export class PlayerController {
       for (let by = Math.floor(minY); by <= Math.floor(maxY); by++) {
         for (let bz = Math.floor(minZ); bz <= Math.floor(maxZ); bz++) {
           const id = manager.getBlockWorld(bx, by, bz);
-          if (id === Block.Air || id === Block.Water) continue;
+          if (!blocksMovement(id)) continue;
           // Only collide if the block truly overlaps on the other two axes.
           const overlap = (lo: number, hi: number, blo: number, bhi: number) =>
             bhi > lo + eps && blo < hi - eps;
@@ -157,6 +163,61 @@ export class PlayerController {
         }
       }
     }
+  }
+
+  /**
+   * Minecraft-style 1-block step. Only runs after a horizontal collision, and
+   * only if the space one block up is clear — a tall wall still stops you.
+   */
+  private tryStepUp(x0: number, y0: number, z0: number, dx: number, dz: number, manager: ChunkManager): void {
+    const blockedX = dx !== 0 && Math.abs(this.pos.x - x0 - dx) > 1e-3;
+    const blockedZ = dz !== 0 && Math.abs(this.pos.z - z0 - dz) > 1e-3;
+    if (!blockedX && !blockedZ) return;
+
+    const bx = this.pos.x;
+    const bz = this.pos.z;
+    const vx = this.vel.x;
+    const vz = this.vel.z;
+    this.pos.set(x0, y0 + 1.01, z0);
+    if (this.overlapsSolid(manager)) {
+      this.pos.set(bx, y0, bz);
+      this.vel.x = vx;
+      this.vel.z = vz;
+      return;
+    }
+    this.vel.x = vx;
+    this.vel.z = vz;
+    this.collideAxis(0, dx, manager);
+    this.collideAxis(2, dz, manager);
+    const progressed = Math.abs(this.pos.x - x0) > 0.05 || Math.abs(this.pos.z - z0) > 0.05;
+    if (!progressed || this.overlapsSolid(manager)) {
+      this.pos.set(bx, y0, bz);
+      this.vel.x = vx;
+      this.vel.z = vz;
+      return;
+    }
+    this.collideAxis(1, -1.05, manager);
+  }
+
+  private overlapsSolid(manager: ChunkManager): boolean {
+    const eps = 1e-4;
+    const minX = this.pos.x - this.half;
+    const maxX = this.pos.x + this.half;
+    const minY = this.pos.y;
+    const maxY = this.pos.y + PLAYER_HEIGHT;
+    const minZ = this.pos.z - this.half;
+    const maxZ = this.pos.z + this.half;
+    for (let bx = Math.floor(minX); bx <= Math.floor(maxX - eps); bx++) {
+      for (let by = Math.floor(minY); by <= Math.floor(maxY - eps); by++) {
+        for (let bz = Math.floor(minZ); bz <= Math.floor(maxZ - eps); bz++) {
+          if (!blocksMovement(manager.getBlockWorld(bx, by, bz))) continue;
+          if (bx + 1 > minX + eps && bx < maxX - eps && by + 1 > minY + eps && by < maxY - eps && bz + 1 > minZ + eps && bz < maxZ - eps) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 }
 

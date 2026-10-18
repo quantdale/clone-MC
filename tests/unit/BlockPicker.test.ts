@@ -76,6 +76,14 @@ describe("raycastBlocks", () => {
     expect(hit).toBeNull();
   });
 
+  it("does not target the water cell the ray starts inside", () => {
+    const w = new MockWorld();
+    w.set(0, 5, 0, Block.Water);
+    w.set(0, 3, 0, Block.Stone);
+    const hit = raycastBlocks(0.5, 5.2, 0.5, 0, -1, 0, 20, w.get);
+    expect(hit).toMatchObject({ x: 0, y: 3, z: 0, ny: 1 });
+  });
+
   it("terminates when shooting into empty space", () => {
     const w = new MockWorld();
     const hit = raycastBlocks(0.5, 0.5, 0.5, 1, 0, 0, 100, w.get);

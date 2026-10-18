@@ -18,12 +18,12 @@ Out of scope:
 ## Functional Requirements
 
 - **FR-WG-1** — `TerrainGenerator` is constructed with a 32-bit seed and derives four noise instances: `seed ^ 0x1001` (continental), `seed ^ 0x2002` (hills), `seed ^ 0x3003` (detail), `seed ^ 0x4004` (caves) (`TerrainGenerator.ts:15-25`).
-- **FR-WG-2** — `heightAt(x, z)` returns the terrain surface height as a clamped integer in `[1, CHUNK_HEIGHT - 4]` computed from fBm over the continental, hills, detail and mountain noise (`TerrainGenerator.ts:27-36`).
-- **FR-WG-3** — `generate(chunk)` fills every cell for the chunk's x/z column range: `y = 0` is `Block.Bedrock`; `y < h - 3` is `Block.Stone`; `y < h` is `Block.Dirt` except beaches (`h <= SEA_LEVEL + 1`) which are `Block.Sand`; `y === h` is `Block.Grass` (or `Block.Sand` on beaches); `SEA_LEVEL < y` above ground is `Block.Air`; water fills `y <= SEA_LEVEL` (`TerrainGenerator.ts:42-64`).
-- **FR-WG-4** — Caves: `Block.Stone` cells are replaced by `Block.Air` when `isCave` returns true — 3D fBm (`nCave`) with threshold `> 0.52`, only when `y > 3` and `y < h - 2` (`TerrainGenerator.ts:60, 86-89`).
-- **FR-WG-5** — `shouldPlaceTree(x, z, h)` returns true only when `h > SEA_LEVEL + 2`, `h < 34`, and `hash2(x, z, TREE_SEED ^ seed) < 0.02` (`TerrainGenerator.ts:38-40`).
-- **FR-WG-6** — Trees are planted on the chunk's own columns: trunk of `4 + floor(hash2 * 3)` logs above ground, plus a canopy (radius 2, radius 1 top/bottom rings, corner cells omitted on lower rings, trunk cell skipped on those rings) (`TerrainGenerator.ts:66-74, 91-115`).
-- **FR-WG-7** — Tree overhang: the generator scans tree roots in `[x0 - 2, x0 + 16) × [z0 - 2, z0 + 16)` around the chunk and plants canopies of outside-rooted trees that overhang the chunk border (`setIfAir` clips to the chunk) (`TerrainGenerator.ts:76-83, 117-123`).
+- **FR-WG-2** — `heightAt(x, z)` returns the terrain surface height as a clamped integer in `[1, CHUNK_HEIGHT - 4]`, built from broad continental fBm, rolling hill fBm, low-amplitude detail, and a ridged mountain mask (`smooth01` windowed) so mountains are rare and slopes stay gentle (`TerrainGenerator.ts`).
+- **FR-WG-3** — `generate(chunk)` fills every cell for the chunk's x/z column range: `y = 0` is `Block.Bedrock`; `y < h - 3` is `Block.Stone`; `y < h` is `Block.Dirt` except beaches (`h <= SEA_LEVEL + 1`) which are `Block.Sand`; `y === h` is `Block.Grass`, `Block.Sand` on beaches, `Block.Stone` above y=40 and `Block.Snow` above y=50; `SEA_LEVEL < y` above ground is `Block.Air`; water fills `y <= SEA_LEVEL` (`TerrainGenerator.ts`).
+- **FR-WG-4** — Caves: `Block.Stone` cells are replaced by `Block.Air` when `isCave` returns true — 3D fBm (`nCave`) with threshold `> 0.6`, only when `y > 4` and `y < h - 5`, and never near a cliff face (suppressed when the cell is within one block of the minimum neighbor column height) so caves don't punch holes in hillsides (`TerrainGenerator.ts`).
+- **FR-WG-5** — `shouldPlaceTree(x, z, h)` requires `SEA_LEVEL + 2 < h < 40`, slope ≤ 1 across the 4-neighbors, and a forest-clumped hash draw (≈4% in forest noise, ≈0.8% in plains, ≈0.15% elsewhere) (`TerrainGenerator.ts`).
+- **FR-WG-6** — Trees are planted on the chunk's own columns: either an oak (4–5 log trunk, rounded radius-2 canopy with gapped edges) or a spruce (6–7 log trunk, layered radius 2→1→0 crown) chosen by a seeded draw (`TerrainGenerator.ts`).
+- **FR-WG-7** — Tree overhang: the generator scans tree roots in `[x0 - 2, x0 + 16) × [z0 - 2, z0 + 16)` around the chunk and plants canopies of outside-rooted trees that overhang the chunk border (`setIfAir` clips to the chunk); uncrowned surface cells may receive tall grass or flowers (`TerrainGenerator.ts`).
 - **FR-WG-8** — All generation functions are pure functions of world coordinates and the seed; no hidden global state, so regeneration of any chunk is deterministic (`TerrainGenerator.ts:7-13`).
 - **FR-WG-9** — Player edits are layered on top of freshly generated terrain as an absolute per-cell overlay (`Chunk.applyEdits` in `src/world/Chunk.ts:45-49`; applied by `ChunkManager.generateChunk`, see `chunk-streaming` spec) — an edit is never overwritten by regeneration while it remains in the overlay.
 
@@ -32,7 +32,7 @@ Out of scope:
 - **NR-WG-1** — Determinism: `heightAt`, `shouldPlaceTree`, `generate`, `isCave`, and `placeTree` must return identical results for identical `(seed, x, z)` inputs across calls and across chunk load lifetimes.
 - **NR-WG-2** — Noise is deterministic given a seed (`SimplexNoise` permutation table built with `mulberry32`; `src/utils/Noise.ts:11-25`); `hash2` is a pure integer hash (`src/utils/Random.ts:14-20`).
 - **NR-WG-3** — Height must stay within `[1, CHUNK_HEIGHT - 4]` so the top of the world is always above the top terrain column (`TerrainGenerator.ts:33-34`).
-- **NR-WG-4** — Tree density is bounded by the hash threshold (`< 0.02` ≈ 2% of eligible columns have a tree) (`TerrainGenerator.ts:39`).
+- **NR-WG-4** — Tree density is bounded by the forest-clumped hash draw (roughly 0.15–4% of eligible columns depending on the forest noise band) (`TerrainGenerator.ts`).
 - **NR-WG-5** — **To be measured**: generation cost per chunk shares the `ChunkManager` per-frame budget (see `chunk-streaming`); no standalone timing target exists.
 
 ## Inputs and Outputs

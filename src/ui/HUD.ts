@@ -36,6 +36,12 @@ export class HUD {
   private slotEls: HTMLElement[] = [];
   private debugEl = el("debug");
   private debugOn = true;
+  private heldEl = el("held");
+  private px = Number.NaN;
+  private py = Number.NaN;
+  private pz = Number.NaN;
+  private chunkN = Number.NaN;
+  private debugText = "";
 
   constructor() {
     HOTBAR.forEach((b, i) => {
@@ -68,6 +74,8 @@ export class HUD {
   setSelected(i: number): void {
     this.selected = i;
     this.slotEls.forEach((s, k) => s.classList.toggle("selected", k === i));
+    const id = HOTBAR[i];
+    this.heldEl.textContent = id !== undefined ? BLOCKS[id].name : "";
   }
 
   setFps(fps: number): void {
@@ -75,10 +83,19 @@ export class HUD {
   }
 
   setPos(x: number, y: number, z: number): void {
-    this.posEl.textContent = `XYZ ${Math.floor(x)} ${Math.floor(y)} ${Math.floor(z)}`;
+    const ix = Math.floor(x);
+    const iy = Math.floor(y);
+    const iz = Math.floor(z);
+    if (ix === this.px && iy === this.py && iz === this.pz) return;
+    this.px = ix;
+    this.py = iy;
+    this.pz = iz;
+    this.posEl.textContent = `XYZ ${ix} ${iy} ${iz}`;
   }
 
   setChunks(n: number): void {
+    if (n === this.chunkN) return;
+    this.chunkN = n;
     this.chunkEl.textContent = `Chunks ${n}`;
   }
 
@@ -88,9 +105,12 @@ export class HUD {
 
   /** Debug overlay (F3): pending work and triangle counts. */
   setDebug(s: { pendingGen: number; pendingMesh: number; editedCells: number; triangles: number }): void {
-    this.debugEl.textContent =
+    const text =
       `pending gen ${s.pendingGen} · pending mesh ${s.pendingMesh} · ` +
       `edited ${s.editedCells} · tris ${s.triangles}`;
+    if (text === this.debugText) return;
+    this.debugText = text;
+    this.debugEl.textContent = text;
   }
 
   toggleDebug(): boolean {

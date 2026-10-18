@@ -9,6 +9,9 @@ export enum Block {
   Log = 7,
   Leaves = 8,
   Brick = 9,
+  TallGrass = 10,
+  Flower = 11,
+  Snow = 12,
 }
 
 export enum Tex {
@@ -23,6 +26,9 @@ export enum Tex {
   LogTop = 8,
   Leaves = 9,
   Brick = 10,
+  TallGrass = 11,
+  Flower = 12,
+  Snow = 13,
 }
 
 export interface BlockDef {
@@ -66,6 +72,23 @@ export const BLOCKS: Record<number, BlockDef> = {
   },
   [Block.Leaves]: { id: Block.Leaves, name: "Leaves", solid: true, opaque: false, breakable: true, textures: all(Tex.Leaves) },
   [Block.Brick]: { id: Block.Brick, name: "Brick", solid: true, opaque: true, breakable: true, textures: all(Tex.Brick) },
+  [Block.TallGrass]: {
+    id: Block.TallGrass,
+    name: "Tall Grass",
+    solid: false,
+    opaque: false,
+    breakable: true,
+    textures: all(Tex.TallGrass),
+  },
+  [Block.Flower]: {
+    id: Block.Flower,
+    name: "Flower",
+    solid: false,
+    opaque: false,
+    breakable: true,
+    textures: all(Tex.Flower),
+  },
+  [Block.Snow]: { id: Block.Snow, name: "Snow", solid: true, opaque: true, breakable: true, textures: all(Tex.Snow) },
 };
 
 export const HOTBAR: readonly Block[] = [
@@ -80,6 +103,10 @@ export const HOTBAR: readonly Block[] = [
   Block.Brick,
 ];
 
+export function blocksMovement(id: number): boolean {
+  return BLOCKS[id]?.solid === true;
+}
+
 export function isSolid(id: number): boolean {
-  return id !== Block.Air && id !== Block.Water;
+  return blocksMovement(id);
 }

@@ -20,11 +20,11 @@ Out of scope:
 - **FR-L-1** — The scene contains a `DirectionalLight` (sun, color `0xfff3d6`, initial intensity `1.3`) with a `sunTarget` Object3D, a `HemisphereLight` (`0xbcd7ff` / `0x5c5c50`, intensity `0.9`), and an `AmbientLight` (`0xffffff`, intensity `0.25`) (`WorldRenderer.ts:52-58`).
 - **FR-L-2** — `cycleOn` defaults to `true`; `toggleCycle()` flips it and `Game`/`HUD` reflect the state in the `#cycle` HUD element (`WorldRenderer.ts:88-90`, `Game.ts:93-95`).
 - **FR-L-3** — `timeOfDay` starts at `0.27` ("just after sunrise") and advances by `dt / DAY_CYCLE_SECONDS mod 1` only while `cycleOn` (`WorldRenderer.ts:23, 92-95`).
-- **FR-L-4** — The sun orbits the player: `sun.position = playerPos + normalize(cos(ang), sin(ang), 0.35) * 300`; the sun target sits at the player (`WorldRenderer.ts:107-109`).
-- **FR-L-5** — Light intensities are interpolated continuously: `sun.intensity = 0.06 + max(sunH, 0) * 1.4`, `hemi.intensity = 0.18 + dayF * 0.8`, `amb.intensity = 0.15 + dayF * 0.3`, where `dayF = smoothstep(-0.15, 0.35, sunH)` and `sunH = sin(timeOfDay * 2π)` (`WorldRenderer.ts:97-99, 111-113`).
+- **FR-L-4** — The sun orbits the player: `sun.position = playerPos + normalize(cos(ang), sin(ang), 0.35) * 280`; the sun target sits at the player (`WorldRenderer.ts`).
+- **FR-L-5** — Light intensities are interpolated continuously: `sun.intensity = 0.08 + max(sunH, 0) * 1.35`, `hemi.intensity = 0.22 + dayF * 0.72`, `amb.intensity = 0.18 + dayF * 0.28`, where `dayF = smoothstep(-0.15, 0.35, sunH)` and `sunH = sin(timeOfDay * 2π)` (`WorldRenderer.ts`).
 - **FR-L-6** — Dawn tint: `dawnF = max(0, 1 - |sunH| / 0.3)` blends sky toward `0xff9d4d` (`*0.5`) and sun color toward `0xff9d4d` (`*0.6`) near sunrise/sunset (`WorldRenderer.ts:100, 114-115`).
 - **FR-L-7** — Sky and fog colors track each other: scene background and `Fog.color` are both set from the day/night-blended `skyColor` (`WorldRenderer.ts:102-105`).
-- **FR-L-8** — The visible sun sphere (`SphereGeometry(14)`, `MeshBasicMaterial`, `fog: false`, `renderOrder: -1`) follows the sun light and is visible only when `sunH > -0.08` (`WorldRenderer.ts:60-65, 117-119`).
+- **FR-L-8** — The visible sun sphere (`SphereGeometry(8)`, `MeshBasicMaterial`, `fog: false`, `depthWrite: false`, `renderOrder: -1`) follows the sun light and is visible only when `sunH > -0.08`; a fog-free `SkyDome` renders the gradient sky, sun halo, moon, stars and clouds (`WorldRenderer.ts`, `SkyDome.ts`).
 - **FR-L-9** — Per-face baked brightness (vertex colors) from the mesher: top faces 1.0, bottom 0.5, +x/−x 0.72, +z/−z 0.84 (`Mesher.ts:30-37`); materials use `vertexColors: true` (`WorldRenderer.ts:70-84`).
 - **FR-L-10** — The atlas texture is marked `colorSpace = SRGBColorSpace` so colors render correctly (`TextureAtlas.ts:46`).
 
@@ -63,7 +63,7 @@ Outputs:
 - **timeOfDay wraparound**: `% 1` keeps `timeOfDay ∈ [0, 1)` indefinitely (`WorldRenderer.ts:94`).
 - **Night sky**: `sunMesh` is hidden when `sunH <= -0.08` to avoid showing a sun below the horizon (`WorldRenderer.ts:118`).
 - **Sun below horizon**: `max(sunH, 0)` floors sun intensity at `0.06` — the world is never fully black (`WorldRenderer.ts:111`).
-- **Player far from origin**: sun and target follow `playerPos`, so directional light remains correct at any coordinate; the 300-unit offset keeps the light within the scene.
+- **Player far from origin**: sun and target follow `playerPos`, so directional light remains correct at any coordinate; the 280-unit offset keeps the light within the scene.
 - **Fog vs. cycle**: fog color is updated with sky color every frame, so distance haze matches the current sky (`WorldRenderer.ts:105`).
 
 ## Performance Expectations

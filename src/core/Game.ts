@@ -25,6 +25,7 @@ export class Game {
   private fpsFrames = 0;
   private fpsTime = 0;
   private ready = false;
+  private readonly look = new THREE.Vector3();
 
   constructor(canvas: HTMLCanvasElement, hud: HUD) {
     this.hud = hud;
@@ -43,10 +44,15 @@ export class Game {
     this.player = new PlayerController(this.renderer.camera);
 
     const boxGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.002, 1.002, 1.002));
-    const boxMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55 });
+    const boxMat = new THREE.LineBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.9 });
     this.selectionBox = new THREE.LineSegments(boxGeo, boxMat);
     this.selectionBox.visible = false;
     this.renderer.scene.add(this.selectionBox);
+    const halo = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(1.04, 1.04, 1.04)),
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45 })
+    );
+    this.selectionBox.add(halo);
 
     this.spawnPlayer();
     this.bindEvents(canvas);
@@ -62,27 +68,36 @@ export class Game {
     let sx = 0;
     let sz = 0;
     let h = t.heightAt(0, 0);
-    if (h <= SEA_LEVEL + 1) {
-      outer: for (let r = 2; r <= 48; r += 2) {
-        for (let dx = -r; dx <= r; dx += 2) {
-          for (let dz = -r; dz <= r; dz += 2) {
-            const hh = t.heightAt(dx, dz);
-            if (hh > SEA_LEVEL + 1 && hh < 42) {
-              sx = dx;
-              sz = dz;
-              h = hh;
-              break outer;
-            }
-          }
+    let found = false;
+    outer: for (let r = 0; r <= 64; r += 2) {
+      for (let dx = -r; dx <= r; dx += 2) {
+        for (let dz = -r; dz <= r; dz += 2) {
+          if (r > 0 && Math.abs(dx) !== r && Math.abs(dz) !== r) continue;
+          const hh = t.heightAt(dx, dz);
+          if (hh <= SEA_LEVEL + 2 || hh >= 38) continue;
+          if (t.shouldPlaceTree(dx, dz, hh)) continue;
+          const slope = Math.max(
+            Math.abs(hh - t.heightAt(dx + 1, dz)),
+            Math.abs(hh - t.heightAt(dx - 1, dz)),
+            Math.abs(hh - t.heightAt(dx, dz + 1)),
+            Math.abs(hh - t.heightAt(dx, dz - 1))
+          );
+          if (slope > 1) continue;
+          sx = dx;
+          sz = dz;
+          h = hh;
+          found = true;
+          break outer;
         }
       }
     }
-    // Never spawn inside a tree: move aside until the column is clear.
-    let guard = 0;
-    while (t.shouldPlaceTree(sx, sz, t.heightAt(sx, sz)) && guard++ < 16) {
-      sz += 4;
+    if (!found) {
+      let guard = 0;
+      while (t.shouldPlaceTree(sx, sz, t.heightAt(sx, sz)) && guard++ < 16) sz += 4;
+      h = t.heightAt(sx, sz);
     }
     this.player.pos.set(sx + 0.5, h + 2.2, sz + 0.5);
+    this.player.pitch = -0.18;
   }
 
   private bindEvents(canvas: HTMLCanvasElement): void {
@@ -146,14 +161,14 @@ export class Game {
 
   private currentHit(): BlockHit | null {
     const cam = this.renderer.camera;
-    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion).normalize();
+    this.look.set(0, 0, -1).applyQuaternion(cam.quaternion).normalize();
     return raycastBlocks(
       cam.position.x,
       cam.position.y,
       cam.position.z,
-      dir.x,
-      dir.y,
-      dir.z,
+      this.look.x,
+      this.look.y,
+      this.look.z,
       MAX_REACH,
       (x, y, z) => this.manager.getBlockWorld(x, y, z)
     );
@@ -210,20 +225,20 @@ export class Game {
 
     this.fpsFrames++;
     this.fpsTime += dt;
-    if (this.fpsTime >= 0.25) {
-      this.hud.setFps(Math.round(this.fpsFrames / this.fpsTime));
-      this.fpsFrames = 0;
-      this.fpsTime = 0;
-    }
     this.hud.setPos(this.player.pos.x, this.player.pos.y, this.player.pos.z);
     const s = this.manager.stats();
     this.hud.setChunks(s.loaded);
-    this.hud.setDebug({
-      pendingGen: s.pendingGen,
-      pendingMesh: s.pendingMesh,
-      editedCells: s.editedCells,
-      triangles: this.renderer.triangles(),
-    });
+    if (this.fpsTime >= 0.25) {
+      this.hud.setFps(Math.round(this.fpsFrames / this.fpsTime));
+      this.hud.setDebug({
+        pendingGen: s.pendingGen,
+        pendingMesh: s.pendingMesh,
+        editedCells: s.editedCells,
+        triangles: this.renderer.triangles(),
+      });
+      this.fpsFrames = 0;
+      this.fpsTime = 0;
+    }
 
     if (!this.ready) {
       const loaded = this.manager.loadedCount();

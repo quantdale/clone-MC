@@ -20,13 +20,13 @@ Out of scope:
 ## Functional Requirements
 
 - **FR-R-1** — The renderer creates a `THREE.WebGLRenderer` on the supplied canvas with `antialias: true` and `powerPreference: "high-performance"` (`src/render/WorldRenderer.ts:38`).
-- **FR-R-2** — Pixel ratio is capped at 2: `setPixelRatio(Math.min(window.devicePixelRatio, 2))` (`WorldRenderer.ts:43`).
+- **FR-R-2** — Pixel ratio is capped at 1.5 (never above the cap of 2): `setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))` (`WorldRenderer.ts`).
 - **FR-R-3** — The camera is a `THREE.PerspectiveCamera(75, aspect, 0.1, 500)` (`WorldRenderer.ts:46`).
-- **FR-R-4** — A scene background color (`0x87ceeb`) and `THREE.Fog(0x87ceeb, 70, 210)` are applied (`WorldRenderer.ts:48-50`).
+- **FR-R-4** — Scene background and `THREE.Fog` track the sky horizon: fog animates `near 52–60` and `far 118–134` and its color matches the horizon color so terrain dissolves into the sky (`WorldRenderer.ts`).
 - **FR-R-5** — `setMaterials(atlas)` creates three shared materials used by all chunk meshes (`WorldRenderer.ts:68-86`):
   - `solid`: `MeshLambertMaterial` with `map: atlas`, `vertexColors: true`.
   - `cutout`: `MeshLambertMaterial` with `map: atlas`, `vertexColors: true`, `alphaTest: 0.5`, `side: THREE.DoubleSide`.
-  - `water`: `MeshLambertMaterial` with `map: atlas`, `vertexColors: true`, `transparent: true`, `opacity: 0.72`, `depthWrite: false`, `side: THREE.DoubleSide`.
+  - `water`: `MeshLambertMaterial` with `map: atlas`, `vertexColors: true`, `transparent: true`, `opacity: 0.72`, `depthWrite: false`, `side: THREE.DoubleSide`, plus polygon offset so the sunken water surface never z-fights the seabed.
 - **FR-R-6** — `Chunk.buildMesh(ctx)` builds geometry via `buildChunkGeometry` and mounts up to three meshes (solid/cutout/water) at world offset `(cx*16, 0, cz*16)` with `renderOrder` 0/0/1 (`src/world/Chunk.ts:51-58`).
 - **FR-R-7** — `resize(w, h)` updates camera aspect, calls `updateProjectionMatrix()`, and calls `renderer.setSize(w, h)` (`WorldRenderer.ts:131-135`); it is invoked on window resize and at startup (`src/core/Game.ts:128-129`).
 - **FR-R-8** — `render()` renders the scene each frame (`WorldRenderer.ts:122-124`); `Game.update` calls it once per frame after the world/player update (`Game.ts:197`).
@@ -82,7 +82,7 @@ Outputs:
 
 ## Acceptance Criteria
 - **AC-R-1** — The renderer initializes without throwing on a WebGL-capable browser and renders the scene.
-- **AC-R-2** — `renderer.setPixelRatio` is capped at 2 (no pixel ratio above 2 regardless of device).
+- **AC-R-2** — `renderer.setPixelRatio` is capped (currently 1.5; never above 2 regardless of device).
 - **AC-R-3** — Exactly three materials are shared across all chunk meshes (`solid`, `cutout`, `water`).
 - **AC-R-4** — Water renders translucent (`opacity 0.72`), after opaque geometry, and does not occlude what is behind it (`depthWrite: false`, `renderOrder 1`).
 - **AC-R-5** — Leaves render as cutout with `alphaTest 0.5` and double-sided, so the transparent holes in the leaf texture are visible.

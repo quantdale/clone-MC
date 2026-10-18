@@ -20,7 +20,7 @@ Out of scope:
 ## Functional Requirements
 
 - **FR-REG-1** — The `Block` enum defines exactly ten ids in order: `Air = 0`, `Grass = 1`, `Dirt = 2`, `Stone = 3`, `Sand = 4`, `Water = 5`, `Bedrock = 6`, `Log = 7`, `Leaves = 8`, `Brick = 9`; `Air` is the zero byte that fills unset chunk storage (`src/blocks/Blocks.ts:1-12`).
-- **FR-REG-2** — The `Tex` enum defines exactly eleven textures in order: `GrassTop = 0`, `GrassSide = 1`, `Dirt = 2`, `Stone = 3`, `Sand = 4`, `Water = 5`, `Bedrock = 6`, `LogSide = 7`, `LogTop = 8`, `Leaves = 9`, `Brick = 10` (`Blocks.ts:14-26`).
+- **FR-REG-2** — The `Tex` enum defines exactly fourteen textures in order: `GrassTop = 0`, `GrassSide = 1`, `Dirt = 2`, `Stone = 3`, `Sand = 4`, `Water = 5`, `Bedrock = 6`, `LogSide = 7`, `LogTop = 8`, `Leaves = 9`, `Brick = 10`, `TallGrass = 11`, `Flower = 12`, `Snow = 13` (`Blocks.ts`).
 - **FR-REG-3** — `BlockDef` exposes `id: Block`, `name: string`, `solid: boolean` (blocks movement), `opaque: boolean` (fully occludes neighboring faces for culling), `breakable: boolean` (whether left-click can remove it), and `textures: readonly [Tex, Tex, Tex, Tex, Tex, Tex]` ordered top, bottom, +x, −x, +z, −z (`Blocks.ts:28-38`).
 - **FR-REG-4** — `BLOCKS: Record<number, BlockDef>` registers exactly the nine placeable blocks; `Air` is implicit (its id reads as the empty byte and never appears in `BLOCKS`) (`Blocks.ts:44-66`).
 - **FR-REG-4b** — exactly one registered block is unbreakable: `Bedrock` has `breakable: false`; all other registered blocks are `breakable: true` (`Blocks.ts:44-66`). `Game.breakBlock` skips unbreakable targets (`src/core/Game.ts:157-160`).
@@ -28,7 +28,7 @@ Out of scope:
 - **FR-REG-6** — `solid`/`opaque` matrix: `Water` is `solid: false, opaque: false`; `Leaves` is `solid: true, opaque: false` (movement-blocking but not face-occluding, so leaves faces render against each other); all other placeable blocks are `solid: true, opaque: true` (`Blocks.ts:44-64`).
 - **FR-REG-7** — `isSolid(id)` returns `id !== Air && id !== Water` as the canonical movement-blocking predicate (`Blocks.ts:79-81`).
 - **FR-REG-8** — `HOTBAR` is exactly the nine placeable blocks in slot order `Grass, Dirt, Stone, Sand, Log, Leaves, Water, Bedrock, Brick` (`Blocks.ts:67-77`).
-- **FR-REG-9** — The atlas paints exactly eleven 16×16 tiles into 18 px cells (`ATLAS_TILE 16`, `ATLAS_CELL 18`, `ATLAS_PAD 1`) on a `16×60`-cell canvas of `ATLAS_W 288 × ATLAS_H 1080`; tile `t` is painted at cell `(t % 16, ⌊t/16⌋)` (`src/blocks/TextureAtlas.ts:13-21, 32-39, 51-53`).
+- **FR-REG-9** — The atlas paints exactly fourteen 16×16 tiles into 18 px cells (`ATLAS_TILE 16`, `ATLAS_CELL 18`, `ATLAS_PAD 1`) on a `16×60`-cell canvas of `ATLAS_W 288 × ATLAS_H 1080`; tile `t` is painted at cell `(t % 16, ⌊t/16⌋)` (`src/blocks/TextureAtlas.ts`).
 - **FR-REG-10** — Tile index `n` of the `Tex` enum paints texture `n` to the atlas cell `n` (`paintTile` switch, `TextureAtlas.ts:105-189`); the resulting `THREE.CanvasTexture` uses `NearestFilter` for min and mag, `ClampToEdgeWrapping`, no mipmaps, and `SRGBColorSpace` (`TextureAtlas.ts:40-47`).
 - **FR-REG-11** — Every texture is drawn procedurally by a seeded painter (`mulberry32(seed * 7919 + 1337)` or a fixed per-tile seed); no PNGs, downloads, or third-party texture files exist anywhere (`TextureAtlas.ts:68-75`; prompt.txt §13 — no copyrighted/proprietary Minecraft textures).
 - **FR-REG-12** — `drawTile(ctx, tile, x, y, size)` copies a tile from the atlas onto the HUD icon canvases with `imageSmoothingEnabled = false` (`TextureAtlas.ts:55-59`); the HUD picks a representative texture per hotbar block (`GrassTop` for Grass, `LogSide` for Log, else `textures[0]`, `src/ui/HUD.ts:4-13`).
@@ -82,7 +82,7 @@ Outputs:
 - **AC-REG-1** — `Block` has exactly the ten ids `Air=0 … Brick=9` and `BLOCKS` registers the nine placeable blocks, each with `id`, `name`, `solid`, `opaque`, `breakable` and a 6-tuple `textures` ordered top/bottom/±x/±z.
 - **AC-REG-2** — `opaque: false` applies to exactly `Water` and `Leaves`; all other placeable blocks are `opaque: true`, and the mesher skips faces against opaque neighbors (see `rendering` spec).
 - **AC-REG-2b** — `breakable: false` applies to exactly `Bedrock`; all other registered blocks are `breakable: true`, and `Game.breakBlock` leaves unbreakable targets intact.
-- **AC-REG-3** — The atlas paints exactly 11 procedural 16×16 tiles in 18 px cells on the 288×1080 canvas (`ATLAS_COLS × ATLAS_ROWS`), sampled with `NearestFilter`/`ClampToEdge` and no mipmaps; `drawTile` renders icon tiles for the HUD.
+- **AC-REG-3** — The atlas paints exactly 14 procedural 16×16 tiles in 18 px cells on the 288×1080 canvas (`ATLAS_COLS × ATLAS_ROWS`), sampled with `NearestFilter`/`ClampToEdge` and no mipmaps; `drawTile` renders icon tiles for the HUD.
 - **AC-REG-4** — `isSolid(id)` returns `true` for every block except `Air` and `Water`.
 - **AC-REG-5** — Per-face texture mapping renders correctly in-game: grass has a green top, dirt bottom and grass-clad sides; logs have bark rings on top/bottom and striped bark on the sides.
 - **AC-REG-6** — The prompt-required block set (§13) is present and functional: Air, Grass, Dirt, Stone, Sand, Water, Bedrock, Log, Leaves (Brick is extra).

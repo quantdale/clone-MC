@@ -17,7 +17,7 @@ Out of scope:
 
 ## Functional Requirements
 
-- **FR-BI-1** — `raycastBlocks(ox,oy,oz,dx,dy,dz,maxDist,getBlock)` steps through the voxel grid using the DDA algorithm and returns the first cell whose `getBlock` value is non-`Air` (`BlockPicker.ts:18-70`).
+- **FR-BI-1** — `raycastBlocks(ox,oy,oz,dx,dy,dz,maxDist,getBlock)` steps through the voxel grid using the DDA algorithm and returns the first cell whose `getBlock` value is non-`Air`, skipping the cell the ray starts inside so targeting never returns the block the player's eye is in (e.g. swimming) with a zero normal (`BlockPicker.ts`).
 - **FR-BI-2** — The returned `BlockHit` is `{ x, y, z, nx, ny, nz }` where `(nx,ny,nz)` is the face normal of the hit face (`BlockPicker.ts:3-12, 50-53`).
 - **FR-BI-3** — The raycast is bounded by `maxDist` and a 512-step safety cap; it returns `null` when no block is hit within reach (`BlockPicker.ts:49, 75`).
 - **FR-BI-4** — `Game.currentHit()` casts the ray from the camera position along the camera's forward direction (via `(0,0,-1)` rotated by the camera quaternion), with `maxDist = MAX_REACH` (6) and `getBlock` backed by `manager.getBlockWorld` (`Game.ts:137-150`).

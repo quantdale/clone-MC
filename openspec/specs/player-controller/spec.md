@@ -25,11 +25,12 @@ Out of scope:
 - **FR-PC-7** — Water: when in water, `vel.y` eases toward `4.2` (space) or `-2.5` (sink) with rate `min(1, dt*6)` (`PlayerController.ts:69-71`).
 - **FR-PC-8** — Water detection (`isInWater`): `inWater` is true when the block at `floor(pos)` at `y + 0.6` or `y + 1.4` is `Block.Water` (`PlayerController.ts:109-116`).
 - **FR-PC-9** — Collision is axis-separated and order Y → X → Z: `collideAxis(1, vel.y*dt, ...)` then `collideAxis(0, ...)` then `collideAxis(2, ...)` (`PlayerController.ts:83-85`).
-- **FR-PC-10** — `collideAxis` only collides with solid (non-Air, non-Water) blocks, checks overlap on the other two axes, and resolves the position with an epsilon `1e-4`; Y-down collision sets `onGround = true`; velocity is zeroed on the resolved axis (`PlayerController.ts:118-160`).
+- **FR-PC-10** — `collideAxis` only collides with blocks that block movement (the registry `solid` flag: plants and water are passable), checks overlap on the other two axes, and resolves the position with an epsilon `1e-4`; Y-down collision sets `onGround = true`; velocity is zeroed on the resolved axis (`PlayerController.ts`).
 - **FR-PC-11** — Safety net: if `pos.y < -16`, the player is teleported to `(0, 60, 0)` with zero velocity (`PlayerController.ts:88-91`).
 - **FR-PC-12** — Camera: position = `pos + (0, EYE_HEIGHT + bob, 0)`; rotation `(pitch, yaw, 0, "YXZ")` (`PlayerController.ts:97-98`).
 - **FR-PC-13** — Head bob: when moving on the ground, `bobPhase += dt * (sprint ? 13 : 10)`; bob offset `sin(bobPhase) * 0.055` (`PlayerController.ts:94-96`).
-- **FR-PC-14** — Sprint FOV kick: `fov` eases toward `82` when sprinting forward and moving, else `75`, via `updateProjectionMatrix` (`PlayerController.ts:101-106`).
+- **FR-PC-14** — Sprint FOV kick: `fov` eases toward `82` when sprinting forward and moving, else `75`, via `updateProjectionMatrix` (`PlayerController.ts`).
+- **FR-PC-15** — Auto step-up: after a horizontal collision while grounded, the controller retries the move one block higher when the space above is clear and the move actually progresses, then settles back down (a tall wall still stops the player; jumps and falls are unaffected) (`PlayerController.ts`).
 
 ## Non-functional Requirements
 

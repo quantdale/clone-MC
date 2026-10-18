@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { DAY_CYCLE_SECONDS } from "../Constants";
 import { smoothstep } from "../utils/MathUtils";
+import { SkyDome } from "./SkyDome";
+import { installVoxelTiling, tickVoxelTiling } from "./voxelShader";
 
 export interface RenderMaterials {
   solid: THREE.Material;
@@ -9,9 +11,10 @@ export interface RenderMaterials {
 }
 
 /**
- * Owns the WebGL renderer, camera, scene lighting and sky. Handles the
- * optional day/night cycle: the sun orbits the world, light intensities
- * and sky/fog colors are lerped between night, dawn and day states.
+ * Owns the WebGL renderer, camera, scene lighting and sky. The day/night
+ * cycle orbits the sun, lerps light and sky colors, and keeps fog matched
+ * to the horizon so distant terrain dissolves into the sky instead of a
+ * flat gray fill.
  */
 export class WorldRenderer {
   readonly renderer: THREE.WebGLRenderer;
@@ -20,7 +23,7 @@ export class WorldRenderer {
   materials!: RenderMaterials;
 
   cycleOn = true;
-  timeOfDay = 0.27; // start just after sunrise
+  timeOfDay = 0.27; // late morning — sun is up, sky is clearly blue
 
   private sun: THREE.DirectionalLight;
   private sunTarget = new THREE.Object3D();
@@ -28,11 +31,20 @@ export class WorldRenderer {
   private amb: THREE.AmbientLight;
   private sunMesh: THREE.Mesh;
   private fog: THREE.Fog;
-  private sunColor = new THREE.Color();
-  private skyColor = new THREE.Color();
-  private skyDay = new THREE.Color(0x87ceeb);
-  private skyNight = new THREE.Color(0x0d1226);
-  private skyDawn = new THREE.Color(0xff9d4d);
+  private sky: SkyDome;
+  private elapsed = 0;
+  private readonly sunDir = new THREE.Vector3();
+  private readonly sunColor = new THREE.Color();
+  private readonly skyColor = new THREE.Color();
+  private readonly zenith = new THREE.Color();
+  private readonly horizon = new THREE.Color();
+  private readonly skyDay = new THREE.Color(0x87ceeb);
+  private readonly skyNight = new THREE.Color(0x0d1226);
+  private readonly skyDawn = new THREE.Color(0xff9d4d);
+  private readonly zenithDay = new THREE.Color(0x3d8fd4);
+  private readonly zenithNight = new THREE.Color(0x070b18);
+  private readonly horizonDay = new THREE.Color(0xc9ebff);
+  private readonly horizonNight = new THREE.Color(0x1a2444);
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -40,13 +52,14 @@ export class WorldRenderer {
       antialias: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
 
     this.scene.background = new THREE.Color(0x87ceeb);
-    this.fog = new THREE.Fog(0x87ceeb, 70, 210);
+    this.fog = new THREE.Fog(0xc9ebff, 58, 128);
     this.scene.fog = this.fog;
 
     this.sun = new THREE.DirectionalLight(0xfff3d6, 1.3);
@@ -58,11 +71,15 @@ export class WorldRenderer {
     this.scene.add(this.hemi, this.amb);
 
     this.sunMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(14, 20, 20),
-      new THREE.MeshBasicMaterial({ color: 0xfff6cf, fog: false })
+      new THREE.SphereGeometry(8, 16, 12),
+      new THREE.MeshBasicMaterial({ color: 0xfff6cf, fog: false, depthWrite: false })
     );
     this.sunMesh.renderOrder = -1;
+    this.sunMesh.frustumCulled = false;
     this.scene.add(this.sunMesh);
+
+    this.sky = new SkyDome();
+    this.scene.add(this.sky.mesh);
   }
 
   setMaterials(atlas: THREE.Texture): void {
@@ -81,8 +98,14 @@ export class WorldRenderer {
         opacity: 0.72,
         depthWrite: false,
         side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: 1,
+        polygonOffsetUnits: 1,
       }),
     };
+    installVoxelTiling(this.materials.solid, false);
+    installVoxelTiling(this.materials.cutout, false);
+    installVoxelTiling(this.materials.water, true);
   }
 
   toggleCycle(): void {
@@ -90,6 +113,7 @@ export class WorldRenderer {
   }
 
   update(dt: number, playerPos: THREE.Vector3): void {
+    this.elapsed += dt;
     if (this.cycleOn) {
       this.timeOfDay = (this.timeOfDay + dt / DAY_CYCLE_SECONDS) % 1;
     }
@@ -98,26 +122,45 @@ export class WorldRenderer {
     const sunH = Math.sin(ang);
     const dayF = smoothstep(-0.15, 0.35, sunH);
     const dawnF = Math.max(0, 1 - Math.abs(sunH) / 0.3);
+    const nightF = 1 - dayF;
 
     this.skyColor.copy(this.skyNight).lerp(this.skyDay, dayF);
-    this.skyColor.lerp(this.skyDawn, dawnF * 0.5);
-    (this.scene.background as THREE.Color).copy(this.skyColor);
-    this.fog.color.copy(this.skyColor);
+    this.skyColor.lerp(this.skyDawn, dawnF * 0.55);
+    this.zenith.copy(this.zenithNight).lerp(this.zenithDay, dayF);
+    this.zenith.lerp(this.skyDawn, dawnF * 0.35);
+    this.horizon.copy(this.horizonNight).lerp(this.horizonDay, dayF);
+    this.horizon.lerp(this.skyDawn, dawnF * 0.72);
 
-    const sunDir = new THREE.Vector3(Math.cos(ang), sunH, 0.35).normalize();
-    this.sun.position.copy(playerPos).addScaledVector(sunDir, 300);
+    (this.scene.background as THREE.Color).copy(this.horizon);
+    this.fog.color.copy(this.horizon);
+    this.fog.near = 52 + dayF * 8;
+    this.fog.far = 118 + dayF * 16;
+
+    this.sunDir.set(Math.cos(ang), sunH, 0.35).normalize();
+    this.sun.position.copy(playerPos).addScaledVector(this.sunDir, 280);
     this.sunTarget.position.copy(playerPos);
 
-    this.sun.intensity = 0.06 + Math.max(sunH, 0) * 1.4;
-    this.hemi.intensity = 0.18 + dayF * 0.8;
-    this.amb.intensity = 0.15 + dayF * 0.3;
-    this.sunColor.set(0xfff3d6).lerp(new THREE.Color(0xff9d4d), dawnF * 0.6);
+    this.sun.intensity = 0.08 + Math.max(sunH, 0) * 1.35;
+    this.hemi.intensity = 0.22 + dayF * 0.72;
+    this.amb.intensity = 0.18 + dayF * 0.28;
+    this.sunColor.set(0xfff3d6).lerp(this.dawnTint, dawnF * 0.6);
     this.sun.color.copy(this.sunColor);
+    this.hemi.color.copy(this.hemiDay).lerp(this.horizon, 0.35);
+    this.groundTint.set(0x6a6248).lerp(this.groundNight, nightF);
+    this.hemi.groundColor.copy(this.groundTint);
 
-    this.sunMesh.position.copy(this.sun.position);
+    this.sunMesh.position.copy(playerPos).addScaledVector(this.sunDir, 360);
     this.sunMesh.visible = sunH > -0.08;
     (this.sunMesh.material as THREE.MeshBasicMaterial).color.copy(this.sunColor);
+
+    this.sky.update(playerPos, this.zenith, this.horizon, this.sunDir, this.sunColor, this.elapsed, nightF, dayF);
+    if (this.materials) tickVoxelTiling(this.materials, this.elapsed);
   }
+
+  private readonly dawnTint = new THREE.Color(0xff9d4d);
+  private readonly hemiDay = new THREE.Color(0xbcd7ff);
+  private readonly groundTint = new THREE.Color(0x6a6248);
+  private readonly groundNight = new THREE.Color(0x2a3148);
 
   render(): void {
     this.renderer.render(this.scene, this.camera);

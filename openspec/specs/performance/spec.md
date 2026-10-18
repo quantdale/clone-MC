@@ -20,11 +20,11 @@ Out of scope:
 - **FR-P-1** — The main loop caps `dt` at `0.05` s (`Math.min((now - last) / 1000, 0.05)`) so a dropped frame never causes a physics explosion (`Game.ts:183`).
 - **FR-P-2** — Chunk generation runs within a 6 ms per-frame budget: `while (queue.length && performance.now() - genStart < 6)` (`ChunkManager.ts:115-120`).
 - **FR-P-3** — Chunk meshing runs within a 6 ms per-frame budget: `for (const chunk of rebuild) { if (performance.now() - meshStart > 6) break; ... }` (`ChunkManager.ts:122-127`).
-- **FR-P-4** — Pixel ratio is capped at 2 to bound fill-rate (`WorldRenderer.ts:43`).
+- **FR-P-4** — Pixel ratio is capped (currently 1.5, never above 2) to bound fill-rate (`WorldRenderer.ts`).
 - **FR-P-5** — Unload runs at most once per second (`unloadTimer > 1`) to bound maintenance cost (`ChunkManager.ts:129-133`).
 - **FR-P-6** — Chunk storage is a fixed `Uint8Array(16*64*16)` per chunk (`Chunk.ts:16`).
 - **FR-P-7** — The texture atlas is a fixed 16×60 tile canvas (288×1080 px) with `NearestFilter`, no mipmaps (`TextureAtlas.ts:13-21, 40-46`).
-- **FR-P-8** — Greedy meshing merges adjacent faces with identical texture into single quads, capped per-run so UVs stay inside the atlas cell (`Mesher.ts:139-154`).
+- **FR-P-8** — Greedy meshing merges adjacent faces with identical texture into single quads; runs are not capped by atlas cell because UVs are computed per block in the fragment shader (`src/render/voxelShader.ts`), so a merged quad can span a whole chunk without texture stretching.
 - **FR-P-9** — Face culling hides faces between opaque neighbors and between opaque/water neighbors (`Mesher.ts:122-124`).
 
 ## Non-functional Requirements

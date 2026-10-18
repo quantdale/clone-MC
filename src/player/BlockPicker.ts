@@ -45,9 +45,15 @@ export function raycastBlocks(
   let ny = 0;
   let nz = 0;
   let t = 0;
+  // The cell containing the eye is not a target. Starting inside water or
+  // leaves used to return that cell with a zero normal, so break/place hit
+  // the block you were standing in instead of the one you were looking at.
+  let skippedOrigin = false;
 
   for (let i = 0; i < 512; i++) {
-    if (getBlock(x, y, z) !== Block.Air) {
+    if (!skippedOrigin) {
+      skippedOrigin = true;
+    } else if (getBlock(x, y, z) !== Block.Air) {
       return { x, y, z, nx, ny, nz };
     }
     if (tMaxX < tMaxY && tMaxX < tMaxZ) {

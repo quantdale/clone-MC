@@ -60,17 +60,33 @@ describe("hash2", () => {
     expect(new Set(values).size).toBeGreaterThan(1);
   });
 
-  it("returns finitely bounded values", () => {
-    // The mix of Math.imul / signed shifts means the output can be negative;
-    // both [0,1) outputs and small signed values occur in practice.
+  it("returns values in [0, 1) — never negative", () => {
+    // Regression guard: the avalanche uses signed Math.imul, so a missing
+    // `>>> 0` made ~53% of samples negative. Every `hash < chance` test then
+    // passed for half the world and carpeted it with trees.
     for (let x = -20; x <= 20; x += 7) {
       for (let z = -20; z <= 20; z += 7) {
         for (const s of [0, 1, 12345]) {
           const h = hash2(x, z, s);
-          expect(Math.abs(h)).toBeLessThanOrEqual(1);
+          expect(h).toBeGreaterThanOrEqual(0);
+          expect(h).toBeLessThan(1);
           expect(Number.isFinite(h)).toBe(true);
         }
       }
     }
+  });
+
+  it("is roughly uniform, so probability thresholds mean what they say", () => {
+    let under = 0;
+    let total = 0;
+    for (let x = -60; x < 60; x++) {
+      for (let z = -60; z < 60; z++) {
+        total++;
+        if (hash2(x, z, 7) < 0.05) under++;
+      }
+    }
+    const rate = under / total;
+    expect(rate).toBeGreaterThan(0.03);
+    expect(rate).toBeLessThan(0.07);
   });
 });

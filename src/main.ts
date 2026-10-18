@@ -14,6 +14,7 @@ const REQUIRED_IDS = [
   "loadbarfill",
   "loadtext",
   "hotbar",
+  "held",
   "debug",
   "fatal",
 ];
@@ -33,6 +34,7 @@ function boot(): void {
   game.start();
 
   // Test hook for automated validation.
+  // SAFETY: Window has no __mc in the DOM lib; the e2e suite reads this exact field.
   (window as unknown as { __mc: Game }).__mc = game;
 }
 

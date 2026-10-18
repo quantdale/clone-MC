@@ -85,6 +85,9 @@ function replaceMesh(
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(x, 0, z);
   mesh.renderOrder = renderOrder;
+  mesh.updateMatrix();
+  mesh.matrixAutoUpdate = false;
+  mesh.frustumCulled = true;
   ctx.scene.add(mesh);
   return mesh;
 }
