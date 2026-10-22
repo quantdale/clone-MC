@@ -57,3 +57,9 @@ Do not persist volatile live-HEAD claims in living docs unless the document is e
 Inspect the working tree and diff before committing. Do not discard unrelated work, rewrite history, force-push, or use destructive cleanup as a shortcut. Commit only intentional, validated changes and state any unverified platform/browser assumptions explicitly.
 
 More specific instructions in subdirectories may add stricter requirements but must not silently weaken this contract.
+
+## Cross-project UX, DX, and AX principles
+
+Cut taglines, helper text and secondary labels. If a screen needs them to make sense, fix the layout.
+
+Make the best decision that will elevate all three: the user experience (UX), developer experience (DX), and agent experience (AX) always, without breaking anything.
